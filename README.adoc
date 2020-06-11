@@ -1,0 +1,105 @@
+= About the project
+
+A fuse-based filesystem to get access to instagram pages.
+
+= How to install
+
+This application is a python package.
+You can use `pip` to install it directly from github:
+[source, sh]
+----
+$ pip install https://github.com/igsha/instafs/tarball/master
+----
+
+Another option is to use https://nixos.org/guides/install-nix.html[nix]:
+[source, sh]
+----
+$ nix-env -f https://github.com/igsha/instafs/tarball/master -i -E 'f: (import <nixpkgs> {}).callPackage f {}'
+----
+
+= How to use
+
+== Mount
+
+Like any fuse-based filesystem instafs should be started as
+[source, sh]
+----
+$ instafs -u <user> /mount/point
+----
+
+.Parameters
+<user>:: Account name to mount.
+/mount/point:: A folder where the program should mount account data.
+
+== Working with mount point
+
+Now the chosen account is mounted as ordinary folder in the mount point.
+You can list its content and watch images/video.
+
+Each post is a folder with
+
+* media data: jpeg images or mp4 video files;
+* `caption.txt` file with the given caption;
+* `info.json` that contains service information;
+* the folder name is a sequence number within the account;
+* the files timestamps are the real creation time of the post.
+
+The root folder of an account contains
+
+* initial posts (12 items);
+* special `next` folder that contains the next 12 posts;
+* `biography.txt` file with the description of the account;
+* `user.json` is a service information of the mounted account.
+
+Example for the `instagram` account:
+[source, sh]
+----
+$ mkdir /tmp/mnt
+$ instafs -u instagram /tmp/mnt
+$ cd /tmp/mnt
+/tmp/mnt $ ls
+6367  6368  6369  6370  6371  6372  6373  6374  6375  6376  6377  6378  biography.txt  next  userinfo.json
+/tmp/mnt $ cat biography.txt
+#ShareBlackStories
+/tmp/mnt $ cd next
+/tmp/mnt/next $ ls
+6355  6356  6357  6358  6359  6360  6361  6362  6363  6364  6365  6366  next
+/tmp/mnt/next $ cd next
+/tmp/mnt/next/next $ ls
+6343  6344  6345  6346  6347  6348  6349  6350  6351  6352  6353  6354  next
+/tmp/mnt/next/next $ cd 6345
+/tmp/mnt/next/next/6345 $ ll
+total 116K
+-r--r--r-- 1 igor users 115K May 13 19:20 0.jpg
+-r--r--r-- 1 igor users  311 May 13 19:20 caption.txt
+-r--r--r-- 1 igor users  117 May 13 19:20 info.json
+/tmp/mnt/next/next/6345 $ cat caption.txt
+To: Graduating seniors ⁣
+From: @daquan⁣
+
+Subject:  A meme just for you ❤️⁣
+
+Email:⁣
+Graduation or no graduation, you did it 🙏🏾⁣
+You hustled hard and got it done 💪🏾⁣
+Be proud of yourself for all the hours of hard work you put in to get that diploma 🔥 ⁣
+
+#Graduation2020
+/tmp/mnt/next/next/6345 $ cat info.json
+{
+  "id": "2308266482250920588",
+  "shortcode": "CAInCLJgbKM",
+  "url": "https://www.instagram.com/p/CAInCLJgbKM"
+}
+/tmp/mnt/next/next/6345 $ cd
+$ fusermount -u /tmp/mnt
+$ rmdir /tmp/mnt
+----
+
+== Unmount
+
+To unmount account just use
+[source, sh]
+----
+$ fusermount -u /mount/point
+----
