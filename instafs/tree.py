@@ -67,9 +67,13 @@ class Tree(dict):
         entities = []
         for post in posts:
             name = str(post.index)
-            lst = ['info.json', 'caption.txt']
-            self[f'{path}/{name}/{lst[-1]}'] = FileInfo(True, post.timestamp, self.uid, self.gid, post.caption)
-            self[f'{path}/{name}/{lst[-2]}'] = FileInfo(True, post.timestamp, self.uid, self.gid, post.info)
+            lst = ['info.json']
+            self[f'{path}/{name}/{lst[-1]}'] = FileInfo(True, post.timestamp, self.uid, self.gid, post.info)
+
+            if post.caption is not None:
+                lst.append('caption.txt')
+                self[f'{path}/{name}/{lst[-1]}'] = FileInfo(True, post.timestamp, self.uid, self.gid, post.caption)
+
             for i, item in enumerate(post.media):
                 ext = self.extmap[item.type]
                 lst.append(f'{i}.{ext}')

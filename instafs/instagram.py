@@ -84,13 +84,18 @@ class Post(object):
         node = edge['node']
         self.index = index
         self.typename = node['__typename']
-        self.caption = toutf8(node['edge_media_to_caption']['edges'][0]['node']['text'])
         self.comments = Comment(node['edge_media_to_comment'])
         self.timestamp = datetime.datetime.fromtimestamp(node['taken_at_timestamp'])
         if self.typename == 'GraphSidecar':  # GraphImage | GraphSidecar | GraphVideo
             self.media = [self._get_media(edge['node']) for edge in node['edge_sidecar_to_children']['edges']]
         else:
             self.media = [self._get_media(node)]
+
+        captions = node['edge_media_to_caption']['edges']
+        if len(captions) > 0:
+            self.caption = toutf8(captions[0]['node']['text'])
+        else:
+            self.caption = None
 
         self.info = toutf8(json.dumps({'id': node['id'],
                                        'shortcode': node['shortcode'],
