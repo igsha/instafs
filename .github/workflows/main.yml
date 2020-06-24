@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Create bundle
+      id: info
+      run: |
+        TAGNAME=$(basename ${{ github.ref }})
+        mkdir build
+        git tag -l --format='%(body)' $TAGNAME > build/body.txt
+        echo ::set-output name=title::$(git tag -l --format='%(subject)' $TAGNAME)
+    - uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        body_path: build/body.txt
+        name: ${{ steps.info.outputs.title }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
