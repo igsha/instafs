@@ -27,16 +27,16 @@ class FileInfo(object):
 
 
 class LazyList(object):
-    def __init__(self, callback, arg):
+    def __init__(self, callback, *args):
         self.callback = callback
-        self.arg = arg
+        self.args = args
         self.entities = []
 
     def __getitem__(self, idx):
         if self.entities == []:
-            self.entities = self.callback(self.arg)
+            self.entities = self.callback(*self.args)
             self.callback = None
-            self.arg = None
+            self.args = None
 
         return self.entities[idx]
 
@@ -74,6 +74,8 @@ class Tree(dict):
                 lst.append('caption.txt')
                 self[f'{path}/{name}/{lst[-1]}'] = FileInfo(True, post.timestamp, self.uid, self.gid, post.caption)
 
+            lst += self._add_comments(f'{path}/{name}', post.timestamp, post.comments, post.comments.list)
+
             for i, item in enumerate(post.media):
                 ext = self.extmap[item.type]
                 lst.append(f'{i}.{ext}')
@@ -90,4 +92,29 @@ class Tree(dict):
         return entities
 
     def _next_posts(self, path):
-        return self._add_posts(path, self.profile.load_next())
+        return self._add_posts(path, self.profile.get_next())
+
+    def _add_comments(self, path, ts, comments, comments_list):
+        if comments_list == []:
+            return []
+        else:
+            comments_list = reversed(comments_list)
+
+        lst = ['comments.txt']
+        self[f'{path}/{lst[-1]}'] = FileInfo(True, ts, self.uid, self.gid, self._comment_body(comments_list))
+        if comments.has_next():
+            next_list = LazyList(self._next_comments, f'{path}/next', ts, comments)
+            lst.append('next')
+            self[f'{path}/{lst[-1]}'] = FileInfo(False, ts, self.uid, self.gid, entities=next_list)
+
+        return lst
+
+    def _next_comments(self, path, ts, cmt):
+        return self._add_comments(path, ts, cmt, cmt.get_next())
+
+    @staticmethod
+    def _comment_body(cmts):
+        def getts(t):
+            return t.astimezone().isoformat()
+
+        return '\n'.join([f"[{getts(c.time)}] {c.user}:\n{c.text}\n" for c in cmts]).encode('utf-8')

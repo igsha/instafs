@@ -24,7 +24,7 @@ class TokenManager(object):
             self.user = body['entry_data']['ProfilePage'][0]['graphql']['user']
             self.id = self.user['id']
 
-            script = re.search('href="([^"]+ProfilePageContainer.js[^"]+)', r.text)
+            script = re.search('href="([^"]+ConsumerLibCommons.js[^"]+)', r.text)
             with requests.get(base_url + script.group(1), stream=True) as r2:
                 self.profile = re.search('s\.pagination\},queryId:"([^"]+)', r2.text).group(1)
 
@@ -65,26 +65,59 @@ class DataObject(object):
 
 
 class Comment(object):
-    def __init__(self, cmt):
+    CommentBody = namedtuple('CommentBody', 'text user time')
+
+    def __init__(self, cmt, shortcode, token):
         self.count = cmt['count']
-        self.page_info = cmt['page_info']
+        self.token = token
+        self.shortcode = shortcode
+        if cmt['page_info']['has_next_page']:
+            end_cursor = cmt['page_info']['end_cursor']
+            self.pagination = Continuation(token, {'shortcode': shortcode}, end_cursor, count=50)
+        else:
+            self.pagination = None
+
         self.list = []
-        for edge in cmt['edges']:
+        if self.has_next():
+            self.list = self.get_next()
+
+        self.list = self.list + self._extract_comments(cmt['edges'])
+
+    @staticmethod
+    def _extract_comments(edges):
+        lst = []
+        for edge in edges:
             node = edge['node']
             text = node['text']
             timestamp = datetime.datetime.fromtimestamp(node['created_at'])
             user = node['owner']['username']
-            self.list.append({'text': text, 'user': user, 'timestamp': timestamp})
+            lst.append(Comment.CommentBody(text, user, timestamp))
+
+        return lst
+
+    def has_next(self):
+        return self.pagination is not None
+
+    def get_next(self):
+        data = self.pagination.get()
+        cmt = data['data']['shortcode_media']['edge_media_to_parent_comment']
+        if cmt['page_info']['has_next_page']:
+            end_cursor = cmt['page_info']['end_cursor']
+            self.pagination = Continuation(self.token, {'shortcode': self.shortcode}, end_cursor, count=50)
+        else:
+            self.pagination = None
+
+        return self._extract_comments(cmt['edges'])
 
 
 class Post(object):
     Media = namedtuple('Media', 'url type id content')
 
-    def __init__(self, edge, index):
+    def __init__(self, edge, index, token):
         node = edge['node']
         self.index = index
         self.typename = node['__typename']
-        self.comments = Comment(node['edge_media_to_comment'])
+        self.comments = Comment(node['edge_media_to_comment'], node['shortcode'], token)
         self.timestamp = datetime.datetime.fromtimestamp(node['taken_at_timestamp'])
         if self.typename == 'GraphSidecar':  # GraphImage | GraphSidecar | GraphVideo
             self.media = [self._get_media(edge['node']) for edge in node['edge_sidecar_to_children']['edges']]
@@ -97,9 +130,10 @@ class Post(object):
         else:
             self.caption = None
 
-        self.info = toutf8(json.dumps({'id': node['id'],
-                                       'shortcode': node['shortcode'],
-                                       'url': f"https://www.instagram.com/p/{node['shortcode']}"}, indent=2))
+        keys = ['id', 'shortcode', 'location', '__typename', 'dimensions',
+                'accessibility_caption', 'edge_media_preview_like', 'edge_media_to_tagged_user']
+        new_dict = {k: v for k, v in node.items() if k in keys}
+        self.info = toutf8(json.dumps({**new_dict, 'url': f"https://www.instagram.com/p/{node['shortcode']}"}, indent=2))
 
     @staticmethod
     def _get_media(node):
@@ -117,7 +151,7 @@ class Profile(object):
 
         self.count = media['count']
         self.pagination = self._extract_pagination(self.token, media['page_info'])
-        self.posts = [Post(edge, self.count - idx) for idx, edge in enumerate(media['edges'])]
+        self.posts = [Post(edge, self.count - idx, self.token.comment) for idx, edge in enumerate(media['edges'])]
         self.index = self.count - len(self.posts)
         self.biography = toutf8(self.token.user['biography'])
 
@@ -131,11 +165,11 @@ class Profile(object):
     def has_next(self):
         return self.pagination != None
 
-    def load_next(self):
+    def get_next(self):
         data = self.pagination.get()
         media = data['data']['user']['edge_owner_to_timeline_media']
         self.pagination = self._extract_pagination(self.token, media['page_info'])
-        posts = [Post(edge, self.index - idx) for idx, edge in enumerate(media['edges'])]
+        posts = [Post(edge, self.index - idx, self.token.comment) for idx, edge in enumerate(media['edges'])]
         self.index -= len(posts)
         return posts
 
@@ -150,7 +184,11 @@ if __name__ == '__main__':
     print('biography:', p.biography)
     print('posts count', p.count)
     print('returned posts', len(p.posts))
-    print('post #0 media', p.posts[0].media)
-    print('post #0 id', p.posts[0].id)
-    print('post #0 shortcode', p.posts[0].shortcode)
-    print('post #0 content length', len(p.posts[0].media[0].content))
+
+    post = p.posts[1]
+    print('post #0 media', post.media)
+    print('post #0 content length', len(post.media[0].content))
+    print('post #0 info', post.info)
+
+    print('post #0 comments length', post.comments.count)
+    print('post #0 comments', len(post.comments.list))
