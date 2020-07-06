@@ -40,6 +40,8 @@ Each post is a folder with
 
 * media data: jpeg images or mp4 video files;
 * `caption.txt` file with the given caption;
+* `comments.txt` contains comments in reversed order (may be omitted);
+* `next` folder contains the next batch of comments (if presented);
 * `info.json` that contains service information;
 * the folder name is a sequence number within the account;
 * the files timestamps are the real creation time of the post.
@@ -72,7 +74,9 @@ $ cd /tmp/mnt
 total 116K
 -r--r--r-- 1 igor users 115K May 13 19:20 0.jpg
 -r--r--r-- 1 igor users  311 May 13 19:20 caption.txt
+-r--r--r-- 1 igor users 3.4K May 13 19:20 comments.txt
 -r--r--r-- 1 igor users  117 May 13 19:20 info.json
+drwxr-xr-x 2 igor users 4.0K May 13 19:20 next
 /tmp/mnt/next/next/6345 $ cat caption.txt
 To: Graduating seniors ⁣
 From: @daquan⁣
