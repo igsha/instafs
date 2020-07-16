@@ -24,12 +24,17 @@ class TokenManager(object):
             self.user = body['entry_data']['ProfilePage'][0]['graphql']['user']
             self.id = self.user['id']
 
-            script = re.search('href="([^"]+ConsumerLibCommons.js[^"]+)', r.text)
-            with requests.get(base_url + script.group(1), stream=True) as r2:
-                self.profile = re.search('s\.pagination\},queryId:"([^"]+)', r2.text).group(1)
+            script0 = re.search('href="([^"]+ProfilePageContainer.js[^"]+)', r.text)
+            script1 = re.search('href="([^"]+Consumer.js[^"]+)', r.text)
+            for script in script0, script1:
+                with requests.get(base_url + script.group(1), stream=True) as r2:
+                    result = re.search('s\.pagination\},queryId:"([^"]+)', r2.text)
+                    if result is None:
+                        continue
 
-            script = re.search('href="([^"]+Consumer.js[^"]+)', r.text)
-            with requests.get(base_url + script.group(1), stream=True) as r2:
+                    self.profile = result.group(1)
+
+            with requests.get(base_url + script1.group(1), stream=True) as r2:
                 regex = 'threadedComments\.parentByPostId\.get\(n\)\.pagination\},queryId:"([^"]+)'
                 self.comment = re.search(regex, r2.text).group(1)
 
