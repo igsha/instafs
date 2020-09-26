@@ -86,7 +86,8 @@ class Comment(object):
         if self.has_next():
             self.list = self.get_next()
 
-        self.list = self.list + self._extract_comments(cmt['edges'])
+        if 'edges' in cmt:
+            self.list = self.list + self._extract_comments(cmt['edges'])
 
     @staticmethod
     def _extract_comments(edges):
