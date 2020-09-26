@@ -47,6 +47,17 @@ def main():
     args_parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + __version__)
     args, unknown_args = args_parser.parse_known_args()
 
+    parser = fuse.FuseOptParse()
+    parser.parse_args(args=unknown_args)
+    mountpoint = parser.fuse_args.mountpoint
+    if not os.path.isdir(mountpoint):
+        ans = input(f'Mountpoint {mountpoint} does not exist. Do you want me to create it (y/n)? ')
+        if ans.lower().startswith('y'):
+            os.mkdir(mountpoint)
+        else:
+            print('Mountpoint does not exist. Cannot continue. Exiting...')
+            return 0
+
     server = InstaFS(args.user)
     server.parse(args=unknown_args, errex=1)
     old_handler = signal.signal(signal.SIGINT, signal.SIG_DFL)
