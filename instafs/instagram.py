@@ -6,6 +6,8 @@ from collections import namedtuple
 import datetime
 
 
+default_headers = {'User-agent': 'My user agent 1.0'}
+
 def toutf8(data):
     if not data.endswith('\n'):
         data = data + '\n'
@@ -18,7 +20,7 @@ class TokenManager(object):
         self.username = username
         url = f'https://www.instagram.com/{username}'
         base_url = '{uri.scheme}://{uri.netloc}'.format(uri=urllib.parse.urlparse(url))
-        with requests.get(url, stream=True) as r:
+        with requests.get(url, stream=False, allow_redirects=True, headers=default_headers) as r:
             json_body = re.search('window._sharedData\s*=\s*({.*)(?=;</script>)', r.text)
             body = json.loads(json_body.group(1))
             self.user = body['entry_data']['ProfilePage'][0]['graphql']['user']
@@ -27,14 +29,14 @@ class TokenManager(object):
             script0 = re.search('href="([^"]+ProfilePageContainer.js[^"]+)', r.text)
             script1 = re.search('href="([^"]+Consumer.js[^"]+)', r.text)
             for script in script0, script1:
-                with requests.get(base_url + script.group(1), stream=True) as r2:
-                    result = re.search('s\.pagination\},queryId:"([^"]+)', r2.text)
+                with requests.get(base_url + script.group(1), stream=True, allow_redirects=True, headers=default_headers) as r2:
+                    result = re.search('c\.pagination\},queryId:"([^"]+)', r2.text)
                     if result is None:
                         continue
 
                     self.profile = result.group(1)
 
-            with requests.get(base_url + script1.group(1), stream=True) as r2:
+            with requests.get(base_url + script1.group(1), stream=True, allow_redirects=True, headers=default_headers) as r2:
                 regex = 'threadedComments\.parentByPostId\.get\(n\)\.pagination\},queryId:"([^"]+)'
                 self.comment = re.search(regex, r2.text).group(1)
 
@@ -46,7 +48,7 @@ class Continuation(object):
         self.url_ = f'{base_url}/?query_hash={query_hash}&variables={urllib.parse.quote(variables)}'
 
     def get(self):
-        return requests.get(self.url_).json()
+        return requests.get(self.url_, headers=default_headers).json()
 
 
 class DataObject(object):
@@ -56,14 +58,14 @@ class DataObject(object):
 
     def __getitem__(self, idx):
         if self.content_ is None:
-            with requests.get(self.url_, stream=True) as r:
+            with requests.get(self.url_, stream=True, headers=default_headers) as r:
                 self.content_ = r.raw.read()
 
         return self.content_[idx]
 
     def __len__(self):
         if self.content_ is None:
-            with requests.head(self.url_, timeout=30) as r:
+            with requests.head(self.url_, timeout=30, headers=default_headers) as r:
                 return int(r.headers['Content-Length'])
 
         return len(self.content_)
