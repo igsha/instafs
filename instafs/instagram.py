@@ -207,7 +207,7 @@ if __name__ == '__main__':
     post = p.posts[1]
     print('post #0 media', post.media)
     print('post #0 content length', len(post.media[0].content))
-    print('post #0 info', post.info)
+    print('post #0 info length', len(post.info))
 
     print('post #0 comments length', post.comments.count)
     print('post #0 comments', len(post.comments.list))

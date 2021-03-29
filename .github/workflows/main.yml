@@ -7,9 +7,22 @@ on:
 
 jobs:
   build:
+    if: ${{ github.event.schedule }}
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
+    - uses: cachix/install-nix-action@v12
+    - name: Cache nix environment
+      run: nix-shell -I nixpkgs=channel:nixos-20.09 --run "exit 0"
+    - name: Test code
+      run: python ./instafs/instagram.py
+      shell: env nix-shell -I nixpkgs=channel:nixos-20.09 --run "bash -e {0}"
+
+  release:
+    if: ${{ !github.event.schedule }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
     - name: Create bundle
       id: info
       run: |
