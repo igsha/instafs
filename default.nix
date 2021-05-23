@@ -1,4 +1,4 @@
-{ stdenv, python3Packages }:
+{ stdenv, lib, python3Packages }:
 
 let
   versionRegex = ".*__version__ = '([[:digit:]\\.]+)'.*";
@@ -18,7 +18,7 @@ in python3Packages.buildPythonApplication {
   meta = {
     description = "A fuse-based filesystem to get access to instagram";
     homepage = https://github.com/igsha/instafs;
-    license = stdenv.lib.licenses.mit;
-    maintainers = with stdenv.lib.maintainers; [ igsha ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ igsha ];
   };
 }

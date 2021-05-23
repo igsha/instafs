@@ -30,19 +30,21 @@ class TokenManager(object):
             self.user = body['entry_data']['ProfilePage'][0]['graphql']['user']
             self.id = self.user['id']
 
+            self.profile = None
+            self.comment = None
+
             script0 = re.search('href="([^"]+ProfilePageContainer.js[^"]+)', r.text)
-            script1 = re.search('href="([^"]+Consumer.js[^"]+)', r.text)
-            for script in script0, script1:
+            script1 = re.search('href="([^"]+ConsumerLibCommons.js[^"]+)', r.text)
+            script2 = re.search('href="([^"]+Consumer.js[^"]+)', r.text)
+            for script in script0, script1, script2:
                 with self.session.get(base_url + script.group(1), stream=True, allow_redirects=True, headers=default_headers) as r2:
-                    result = re.search('c\.pagination\},queryId:"([^"]+)', r2.text)
-                    if result is None:
-                        continue
+                    result = re.search('\w\.pagination\},queryId:"([^"]+)', r2.text)
+                    if result and not self.profile:
+                        self.profile = result.group(1)
 
-                    self.profile = result.group(1)
-
-            with self.session.get(base_url + script1.group(1), stream=True, allow_redirects=True, headers=default_headers) as r2:
-                regex = 'threadedComments\.parentByPostId\.get\(n\)\.pagination\},queryId:"([^"]+)'
-                self.comment = re.search(regex, r2.text).group(1)
+                    result = re.search('threadedComments\.parentByPostId\.get\(\w\)\.pagination\}?,queryId:"([^"]+)', r2.text)
+                    if result and not self.comment:
+                        self.comment = result.group(1)
 
 
 class Continuation(object):
